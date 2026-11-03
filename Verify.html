@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Device Verification</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body {
+      background-color: #121212;
+      color: #ffffff;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .btn {
+      background-color: #2ea043;
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2>Device Verification</h2>
+  <p>Tap below to verify your physical device.</p>
+  <button id="btn" class="btn">Verify Device</button>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    function getCanvasFp() {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 200;
+        canvas.height = 50;
+        ctx.fillStyle = "#f60";
+        ctx.fillRect(100, 5, 80, 25);
+        ctx.fillStyle = "#069";
+        ctx.fillText("DEV#SECURE#99", 10, 20);
+        return canvas.toDataURL();
+      } catch(e) { return "err"; }
+    }
+
+    function getGlFp() {
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) return "no_gl";
+        const info = gl.getExtension('WEBGL_debug_renderer_info');
+        return info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : "gl_def";
+      } catch(e) { return "err"; }
+    }
+
+    function hashStr(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return Math.abs(hash).toString(16);
+    }
+
+    document.getElementById('btn').addEventListener('click', async () => {
+      const metrics = [
+        screen.width,
+        screen.height,
+        screen.colorDepth,
+        window.devicePixelRatio || 1,
+        navigator.hardwareConcurrency || 4
+      ].join('x');
+
+      const rawHw = getGlFp() + "|" + metrics + "|" + hashStr(getCanvasFp());
+      const finalFp = hashStr(rawHw) + hashStr(metrics);
+
+      let ipVal = "";
+      try {
+        const res = await fetch('https://api.ipify.org?format=json');
+        const data = await res.json();
+        ipVal = data.ip || "";
+      } catch(e) {}
+
+      const payload = {
+        fp: finalFp,
+        hw_hash: hashStr(rawHw),
+        ip_hash: hashStr(ipVal),
+        tg_id: tg.initDataUnsafe?.user?.id || null
+      };
+
+      tg.sendData(JSON.stringify(payload));
+    });
+  </script>
+</body>
+</html>
